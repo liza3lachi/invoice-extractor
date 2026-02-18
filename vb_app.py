@@ -20,19 +20,59 @@ def preprocess_image(image):
 def parse_generic_invoice(text):
     data = {}
 
-    invoice_number = re.search(r'(invoice\s*(no|number)?[:\s]*)([A-Za-z0-9\-]+)', text, re.IGNORECASE)
-    invoice_date = re.search(r'\b(\d{1,2}[\/\-\.\s]\d{1,2}[\/\-\.\s]\d{2,4})\b', text)
-    total_amount = re.search(r'(total|amount due|grand total)[^\d]*([\d,]+\.\d{2})', text, re.IGNORECASE)
-    currency = re.search(r'\b(USD|EUR|RUB|GBP|AED|IRR)\b', text)
+    invoice_number_patterns = [
+        r'invoice\s*(no|number|#)?[:\s]*([A-Za-z0-9\-\/]+)',
+        r'inv\.?\s*(no|number|#)?[:\s]*([A-Za-z0-9\-\/]+)'
+    ]
 
-    data["invoice_number"] = invoice_number.group(3) if invoice_number else "N/A"
-    data["invoice_date"] = invoice_date.group(1) if invoice_date else "N/A"
-    data["total_amount"] = total_amount.group(2) if total_amount else "N/A"
-    data["currency"] = currency.group(1) if currency else "N/A"
+    invoice_number = "N/A"
+    for pattern in invoice_number_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            invoice_number = match.group(2)
+            break
 
-    data["vendor_name"] = text.split("\n")[0].strip() if text else "N/A"
+    date_patterns = [
+        r'\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b',
+        r'\b\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}\b'
+    ]
+
+    invoice_date = "N/A"
+    for pattern in date_patterns:
+        match = re.search(pattern, text)
+        if match:
+            invoice_date = match.group(0)
+            break
+
+    total_patterns = [
+        r'(grand\s*total|total\s*amount|amount\s*due|total)[^\d]{0,20}([\d,]+\.\d{2})',
+    ]
+
+    total_amount = "N/A"
+    for pattern in total_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            total_amount = match.group(2)
+            break
+
+    currency_match = re.search(r'\b(USD|EUR|GBP|RUB|AED|IRR)\b', text)
+    currency = currency_match.group(1) if currency_match else "N/A"
+
+    lines = text.strip().split("\n")
+    vendor_name = "N/A"
+    for line in lines[:5]:
+        if len(line.strip()) > 3 and not re.search(r'invoice|date|total', line, re.IGNORECASE):
+            vendor_name = line.strip()
+            break
+
+    data["vendor_name"] = vendor_name
+    data["invoice_number"] = invoice_number
+    data["invoice_date"] = invoice_date
+    data["total_amount"] = total_amount
+    data["currency"] = currency
 
     return data
+
 
 def parse_generic_awb(text):
     data = {}
