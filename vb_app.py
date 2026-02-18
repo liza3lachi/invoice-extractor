@@ -16,7 +16,8 @@ def preprocess_image(image):
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                     cv2.THRESH_BINARY, 31, 2)
     return Image.fromarray(thresh)
-    def parse_generic_invoice(text):
+    
+def parse_generic_invoice(text):
     data = {}
 
     invoice_number = "N/A"
