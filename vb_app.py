@@ -16,54 +16,44 @@ def preprocess_image(image):
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                     cv2.THRESH_BINARY, 31, 2)
     return Image.fromarray(thresh)
-
-def parse_generic_invoice(text):
+    def parse_generic_invoice(text):
     data = {}
 
-    invoice_number_patterns = [
-        r'invoice\s*(no|number|#)?[:\s]*([A-Za-z0-9\-\/]+)',
-        r'inv\.?\s*(no|number|#)?[:\s]*([A-Za-z0-9\-\/]+)'
-    ]
-
     invoice_number = "N/A"
-    for pattern in invoice_number_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            invoice_number = match.group(2)
-            break
-
-    date_patterns = [
-        r'\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b',
-        r'\b\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}\b'
-    ]
-
     invoice_date = "N/A"
-    for pattern in date_patterns:
-        match = re.search(pattern, text)
-        if match:
-            invoice_date = match.group(0)
-            break
-
-    total_patterns = [
-        r'(grand\s*total|total\s*amount|amount\s*due|total)[^\d]{0,20}([\d,]+\.\d{2})',
-    ]
-
     total_amount = "N/A"
-    for pattern in total_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            total_amount = match.group(2)
-            break
-
-    currency_match = re.search(r'\b(USD|EUR|GBP|RUB|AED|IRR)\b', text)
-    currency = currency_match.group(1) if currency_match else "N/A"
-
-    lines = text.strip().split("\n")
+    currency = "N/A"
     vendor_name = "N/A"
-    for line in lines[:5]:
-        if len(line.strip()) > 3 and not re.search(r'invoice|date|total', line, re.IGNORECASE):
-            vendor_name = line.strip()
-            break
+
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+
+    for line in lines:
+        if re.search(r'invoice', line, re.IGNORECASE):
+            num_match = re.search(r'([A-Za-z0-9\-\/]+)', line)
+            if num_match:
+                invoice_number = num_match.group(1)
+
+        if re.search(r'(invoice\s*date|date)', line, re.IGNORECASE):
+            date_match = re.search(r'\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}', line)
+            if date_match:
+                invoice_date = date_match.group(0)
+
+        if re.search(r'(grand\s*total|total\s*amount|amount\s*due)', line, re.IGNORECASE):
+            total_match = re.search(r'[\d,]+\.\d{2}', line)
+            if total_match:
+                total_amount = total_match.group(0)
+
+        if re.search(r'\b(USD|EUR|GBP|RUB|AED|IRR)\b', line):
+            currency_match = re.search(r'\b(USD|EUR|GBP|RUB|AED|IRR)\b', line)
+            currency = currency_match.group(1)
+
+    ignore_words = ["invoice", "date", "total", "amount", "bill", "ship", "due"]
+
+    for line in lines[:10]:
+        if not any(word in line.lower() for word in ignore_words):
+            if len(line) > 4 and not re.search(r'\d', line):
+                vendor_name = line
+                break
 
     data["vendor_name"] = vendor_name
     data["invoice_number"] = invoice_number
@@ -72,6 +62,7 @@ def parse_generic_invoice(text):
     data["currency"] = currency
 
     return data
+
 
 
 def parse_generic_awb(text):
